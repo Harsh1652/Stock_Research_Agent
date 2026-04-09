@@ -11,3 +11,4 @@ dist/
 build/
 .pytest_cache/
 PROJECT_DEEP_DIVE.md
+0.2.40

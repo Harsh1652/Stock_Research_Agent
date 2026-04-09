@@ -109,11 +109,10 @@ stock-research-agent/
 │   ├── news.py             # Tavily fetch + gpt-4o-mini summary
 │   ├── financials.py       # yfinance data pull (no LLM)
 │   ├── sentiment.py        # gpt-4o-mini → sentiment float
-│   ├── analyst.py          # gpt-4o final synthesis
-│   └── *.ipynb             # Notebook versions for demo
+│   └── analyst.py          # gpt-4o final synthesis
 ├── graph/
 │   ├── workflow.py         # LangGraph StateGraph definition
-│   └── workflow.ipynb      # Notebook version
+│   └── workflow.ipynb      # End-to-end demo notebook
 ├── tools/
 │   ├── search.py           # Tavily wrapper
 │   └── yfinance_tool.py    # yfinance with US → NSE → BSE fallback
