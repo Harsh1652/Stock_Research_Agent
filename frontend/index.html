@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stock Research Agent</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --accent: #58a6ff;
+      --accent-dim: #1f6feb33;
+      --green: #3fb950;
+      --red: #f85149;
+      --yellow: #d29922;
+      --orange: #f0883e;
+      --text: #c9d1d9;
+      --muted: #8b949e;
+      --radius: 10px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 16px;
+    }
+
+    header { text-align: center; margin-bottom: 40px; }
+    header h1 { font-size: 2rem; font-weight: 700; color: #e6edf3; letter-spacing: -0.5px; }
+    header p  { color: var(--muted); margin-top: 8px; font-size: 0.95rem; }
+
+    /* ── Search box ──────────────────────────────── */
+    .search-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      width: 100%;
+      max-width: 580px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .input-row { display: flex; gap: 10px; }
+
+    input[type="text"] {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 1.05rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      padding: 10px 14px;
+      text-transform: uppercase;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus { border-color: var(--accent); }
+    input[type="text"]::placeholder {
+      color: var(--muted);
+      text-transform: none;
+      font-weight: 400;
+      letter-spacing: 0;
+      font-size: 0.88rem;
+    }
+
+    button#run-btn {
+      background: var(--accent);
+      border: none;
+      border-radius: 6px;
+      color: #0d1117;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 700;
+      padding: 10px 22px;
+      transition: opacity 0.2s;
+      white-space: nowrap;
+    }
+    button#run-btn:hover    { opacity: 0.85; }
+    button#run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Market tabs + chips ─────────────────────── */
+    .market-section { display: flex; flex-direction: column; gap: 8px; }
+
+    .market-label {
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .market-label .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .dot-us     { background: var(--accent); }
+    .dot-india  { background: var(--orange); }
+
+    .chips { display: flex; gap: 7px; flex-wrap: wrap; }
+
+    .chip {
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.76rem;
+      font-weight: 600;
+      padding: 4px 12px;
+      transition: opacity 0.15s;
+    }
+    .chip:hover { opacity: 0.75; }
+
+    .chip-us {
+      background: var(--accent-dim);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+    }
+    .chip-india {
+      background: #2e1a0a;
+      border: 1px solid var(--orange);
+      color: var(--orange);
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 0.75rem;
+      line-height: 1.5;
+    }
+    .hint code {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--orange);
+      font-size: 0.72rem;
+      padding: 1px 6px;
+    }
+
+    /* ── Status / loader ─────────────────────────── */
+    #status { width: 100%; max-width: 580px; margin-top: 16px; }
+
+    .loader {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      text-align: center;
+      color: var(--muted);
+    }
+    .spinner {
+      display: inline-block;
+      width: 28px; height: 28px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 14px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .steps { display: flex; justify-content: center; gap: 6px; margin-top: 14px; flex-wrap: wrap; }
+    .step {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--muted);
+      font-size: 0.72rem;
+      padding: 3px 9px;
+    }
+    .step.active { border-color: var(--accent); color: var(--accent); }
+    .step.done   { border-color: var(--green);  color: var(--green);  }
+
+    .error-box {
+      background: #2d1a1a;
+      border: 1px solid var(--red);
+      border-radius: var(--radius);
+      color: var(--red);
+      padding: 16px 20px;
+      font-size: 0.9rem;
+    }
+
+    /* ── Report card ─────────────────────────────── */
+    .report-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      width: 100%;
+      max-width: 820px;
+      margin-top: 28px;
+      overflow: hidden;
+    }
+
+    .report-header {
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .ticker-tag   { font-size: 1.4rem; font-weight: 800; color: #e6edf3; letter-spacing: 1px; }
+    .company-name { color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
+
+    .header-right { display: flex; align-items: center; gap: 10px; }
+
+    .market-badge {
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      padding: 4px 10px;
+      text-transform: uppercase;
+    }
+    .market-badge.us    { background: var(--accent-dim); border: 1px solid var(--accent); color: var(--accent); }
+    .market-badge.india { background: #2e1a0a; border: 1px solid var(--orange); color: var(--orange); }
+
+    .rec-badge {
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 6px 16px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .rec-badge.buy  { background: #1a3a22; border: 1px solid var(--green);  color: var(--green);  }
+    .rec-badge.hold { background: #2e2207; border: 1px solid var(--yellow); color: var(--yellow); }
+    .rec-badge.sell { background: #2d1a1a; border: 1px solid var(--red);    color: var(--red);    }
+
+    /* ── Metrics grid ────────────────────────────── */
+    .metrics-row {
+      border-bottom: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 1px;
+      background: var(--border);
+    }
+    .metric            { background: var(--surface); padding: 14px 18px; }
+    .metric .label     { color: var(--muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .metric .value     { color: #e6edf3; font-size: 0.98rem; font-weight: 600; margin-top: 4px; }
+
+    /* ── Sentiment bar ───────────────────────────── */
+    .sentiment-wrap { background: var(--surface); padding: 14px 18px; }
+    .sentiment-wrap .label { color: var(--muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .sentiment-bar  { background: var(--border); border-radius: 4px; height: 8px; overflow: hidden; }
+    .sentiment-fill { border-radius: 4px; height: 100%; transition: width 0.8s ease; }
+    .sentiment-text { color: var(--text); font-size: 0.85rem; font-weight: 600; margin-top: 6px; }
+
+    /* ── Report body ─────────────────────────────── */
+    .report-body {
+      padding: 24px;
+      line-height: 1.75;
+      white-space: pre-wrap;
+      font-size: 0.9rem;
+      color: var(--text);
+    }
+    .report-body h2 {
+      color: var(--accent);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      margin-top: 22px;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+    .report-body h2:first-child { margin-top: 0; }
+
+    footer {
+      color: var(--muted);
+      font-size: 0.75rem;
+      margin-top: 52px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Stock Research Agent</h1>
+  <p>5 AI agents &nbsp;·&nbsp; LangGraph &nbsp;·&nbsp; US &amp; India markets &nbsp;·&nbsp; ~30 seconds</p>
+</header>
+
+<div class="search-box">
+  <div class="input-row">
+    <input type="text" id="ticker-input" maxlength="20"
+           placeholder="AAPL · SUZLON · RELIANCE.NS · TCS.BO …" />
+    <button id="run-btn" onclick="runResearch()">Analyze</button>
+  </div>
+
+  <!-- US tickers -->
+  <div class="market-section">
+    <div class="market-label">
+      <span class="dot dot-us"></span> US Market
+    </div>
+    <div class="chips">
+      <span class="chip chip-us" onclick="setTicker('AAPL')">AAPL</span>
+      <span class="chip chip-us" onclick="setTicker('NVDA')">NVDA</span>
+      <span class="chip chip-us" onclick="setTicker('TSLA')">TSLA</span>
+      <span class="chip chip-us" onclick="setTicker('MSFT')">MSFT</span>
+      <span class="chip chip-us" onclick="setTicker('GOOGL')">GOOGL</span>
+      <span class="chip chip-us" onclick="setTicker('META')">META</span>
+    </div>
+  </div>
+
+  <!-- India tickers -->
+  <div class="market-section">
+    <div class="market-label">
+      <span class="dot dot-india"></span> India &nbsp;NSE / BSE
+    </div>
+    <div class="chips">
+      <span class="chip chip-india" onclick="setTicker('RELIANCE.NS')">RELIANCE.NS</span>
+      <span class="chip chip-india" onclick="setTicker('TCS.NS')">TCS.NS</span>
+      <span class="chip chip-india" onclick="setTicker('INFY.NS')">INFY.NS</span>
+      <span class="chip chip-india" onclick="setTicker('SUZLON')">SUZLON</span>
+      <span class="chip chip-india" onclick="setTicker('WIPRO')">WIPRO</span>
+      <span class="chip chip-india" onclick="setTicker('TATAMOTORS.NS')">TATAMOTORS.NS</span>
+      <span class="chip chip-india" onclick="setTicker('ZOMATO')">ZOMATO</span>
+      <span class="chip chip-india" onclick="setTicker('IRCTC')">IRCTC</span>
+    </div>
+    <div class="hint">
+      You can type bare names like <code>SUZLON</code>, <code>WIPRO</code> — the system
+      auto-detects India NSE/BSE. Or add <code>.NS</code> / <code>.BO</code> to be explicit.
+    </div>
+  </div>
+</div>
+
+<div id="status"></div>
+<div id="report-container"></div>
+
+<footer>
+  Powered by LangGraph &nbsp;·&nbsp; OpenAI &nbsp;·&nbsp; Tavily &nbsp;·&nbsp; Yahoo Finance RapidAPI
+  &nbsp;|&nbsp; For demonstration purposes only
+</footer>
+
+<script>
+  // When opened as a local file (file://) relative URLs don't work.
+  // Detect this and point to the running FastAPI server instead.
+  const BASE_URL = window.location.protocol === 'file:'
+    ? 'http://localhost:8000'
+    : '';
+
+  function setTicker(t) {
+    document.getElementById('ticker-input').value = t;
+    runResearch();
+  }
+
+  function setLoading(ticker) {
+    document.getElementById('status').innerHTML = `
+      <div class="loader">
+        <div class="spinner"></div>
+        <div>Running 5 agents for <strong>${ticker}</strong>&hellip;</div>
+        <div class="steps">
+          <span class="step done"    id="s-planner">Planner</span>
+          <span class="step active"  id="s-news">News</span>
+          <span class="step active"  id="s-fin">Financials</span>
+          <span class="step"         id="s-sent">Sentiment</span>
+          <span class="step"         id="s-analyst">Analyst</span>
+        </div>
+      </div>`;
+
+    setTimeout(() => {
+      document.getElementById('s-news')?.classList.replace('active','done');
+      document.getElementById('s-fin')?.classList.replace('active','done');
+      document.getElementById('s-sent')?.classList.add('active');
+    }, 8000);
+    setTimeout(() => {
+      document.getElementById('s-sent')?.classList.replace('active','done');
+      document.getElementById('s-analyst')?.classList.add('active');
+    }, 16000);
+  }
+
+  function fmtCap(n, currency) {
+    const sym = currency || '$';
+    if (!n) return 'N/A';
+    if (n >= 1e12) return `${sym}${(n/1e12).toFixed(2)}T`;
+    if (n >= 1e9)  return `${sym}${(n/1e9).toFixed(1)}B`;
+    if (n >= 1e7)  return `${sym}${(n/1e7).toFixed(0)}Cr`;   // crore for India
+    if (n >= 1e6)  return `${sym}${(n/1e6).toFixed(0)}M`;
+    return `${sym}${n}`;
+  }
+
+  function fmtPrice(p, currency) {
+    if (p == null) return 'N/A';
+    return `${currency || '$'}${Number(p).toFixed(2)}`;
+  }
+
+  function sentimentLabel(s) {
+    if (s == null) return 'N/A';
+    if (s < 0.2) return 'Very Bearish';
+    if (s < 0.4) return 'Bearish';
+    if (s < 0.6) return 'Neutral';
+    if (s < 0.8) return 'Bullish';
+    return 'Very Bullish';
+  }
+  function sentimentColor(s) {
+    if (s == null) return '#8b949e';
+    if (s < 0.4) return '#f85149';
+    if (s < 0.6) return '#d29922';
+    return '#3fb950';
+  }
+
+  function extractRec(report) {
+    const m = (report || '').match(/##\s*RECOMMENDATION\s*\n([^\n#]+)/i);
+    if (!m) return null;
+    const t = m[1].toUpperCase();
+    if (t.includes('BUY'))  return 'buy';
+    if (t.includes('SELL')) return 'sell';
+    if (t.includes('HOLD')) return 'hold';
+    return null;
+  }
+
+  function renderReport(data) {
+    const fin      = data.financials || {};
+    const s        = data.sentiment_score;
+    const rec      = extractRec(data.report);
+    const currency = fin.currency || (data.market && data.market.includes('India') ? '₹' : '$');
+
+    const marketClass = (data.market || '').includes('India') ? 'india' : 'us';
+    const marketLabel = data.market || 'US';
+
+    const formattedReport = (data.report || '')
+      .replace(/^## (.+)$/gm, '<h2>$1</h2>');
+
+    document.getElementById('status').innerHTML = '';
+    document.getElementById('report-container').innerHTML = `
+      <div class="report-card">
+        <div class="report-header">
+          <div>
+            <div class="ticker-tag">${data.ticker}</div>
+            <div class="company-name">${fin.company_name || ''}</div>
+          </div>
+          <div class="header-right">
+            <span class="market-badge ${marketClass}">${marketLabel}</span>
+            ${rec ? `<span class="rec-badge ${rec}">${rec.toUpperCase()}</span>` : ''}
+          </div>
+        </div>
+
+        <div class="metrics-row">
+          <div class="metric">
+            <div class="label">Price</div>
+            <div class="value">${fmtPrice(fin.current_price, currency)}</div>
+          </div>
+          <div class="metric">
+            <div class="label">P/E Ratio</div>
+            <div class="value">${fin.pe_ratio != null ? Number(fin.pe_ratio).toFixed(1)+'x' : 'N/A'}</div>
+          </div>
+          <div class="metric">
+            <div class="label">Market Cap</div>
+            <div class="value">${fmtCap(fin.market_cap, currency)}</div>
+          </div>
+          <div class="metric">
+            <div class="label">52W High</div>
+            <div class="value">${fmtPrice(fin['52_week_high'], currency)}</div>
+          </div>
+          <div class="metric">
+            <div class="label">52W Low</div>
+            <div class="value">${fmtPrice(fin['52_week_low'], currency)}</div>
+          </div>
+          <div class="metric">
+            <div class="label">Rev Growth</div>
+            <div class="value">${fin.revenue_growth != null ? (Number(fin.revenue_growth)*100).toFixed(1)+'%' : 'N/A'}</div>
+          </div>
+          <div class="sentiment-wrap">
+            <div class="label">News Sentiment</div>
+            <div class="sentiment-bar">
+              <div class="sentiment-fill"
+                   style="width:${s != null ? (s*100).toFixed(0) : 50}%;
+                          background:${sentimentColor(s)}"></div>
+            </div>
+            <div class="sentiment-text">
+              ${s != null ? (s*100).toFixed(0)+'%' : '—'} &mdash; ${sentimentLabel(s)}
+            </div>
+          </div>
+        </div>
+
+        <div class="report-body">${formattedReport}</div>
+      </div>`;
+  }
+
+  async function runResearch() {
+    const raw    = document.getElementById('ticker-input').value.trim().toUpperCase();
+    const ticker = raw;
+    if (!ticker) return;
+
+    const btn = document.getElementById('run-btn');
+    btn.disabled = true;
+    document.getElementById('report-container').innerHTML = '';
+    setLoading(ticker);
+
+    try {
+      const res = await fetch(`${BASE_URL}/research`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticker }),
+      });
+
+      document.getElementById('status').innerHTML = '';
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }));
+        document.getElementById('status').innerHTML =
+          `<div class="error-box">&#x26A0; ${err.detail || 'Unknown error'}</div>`;
+        return;
+      }
+
+      renderReport(await res.json());
+
+    } catch (err) {
+      document.getElementById('status').innerHTML =
+        `<div class="error-box">Network error: ${err.message}</div>`;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  document.getElementById('ticker-input')
+    .addEventListener('keydown', e => { if (e.key === 'Enter') runResearch(); });
+</script>
+</body>
+</html>
