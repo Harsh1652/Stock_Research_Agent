@@ -132,7 +132,7 @@ stock-research-agent/
 ### 1. Clone and install
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/Harsh1652/stock-research-agent.git
 cd stock-research-agent
 python -m venv venv
 source venv/bin/activate       # Windows: venv\Scripts\activate
@@ -259,6 +259,10 @@ Every run is fully traced at [smith.langchain.com](https://smith.langchain.com):
 - End-to-end latency breakdown
 - The complete 5-agent execution tree
 
+![LangSmith Trace](assets/langsmith-trace.png)
+
+
+
 ---
 
 ## 🧠 Why This Project Matters
@@ -288,7 +292,7 @@ It demonstrates:
 ## 👨‍💻 Author
 
 **Harsh Gupta**
-Software Engineer | AI Systems Builder
+AI Backend Engineer | AI Systems Builder
 
 ---
 
